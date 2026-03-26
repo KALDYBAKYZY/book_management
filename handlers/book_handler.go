@@ -14,8 +14,7 @@ var nextID = 1
 
 func GetBooks(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	categoryStr := query.Get("category_id")
-	categoryID, _ := strconv.Atoi(categoryStr)
+	categoryID, _ := strconv.Atoi(query.Get("category_id"))
 	page, _ := strconv.Atoi(query.Get("page"))
 	limit, _ := strconv.Atoi(query.Get("limit"))
 	if page <= 0 {
@@ -59,7 +58,7 @@ func CreateBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !categoryExists {
-		http.Error(w, "Category not found", http.StatusBadRequest)
+		http.Error(w, "Category not found", http.StatusNotFound)
 		return
 	}
 	authorExists := false
@@ -70,7 +69,7 @@ func CreateBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !authorExists {
-		http.Error(w, "Author not found", http.StatusBadRequest)
+		http.Error(w, "Author not found", http.StatusNotFound)
 		return
 	}
 	book.ID = nextID
@@ -93,7 +92,11 @@ func GetBookByID(w http.ResponseWriter, r *http.Request) {
 
 func UpdateBook(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, _ := strconv.Atoi(params["id"])
+	id, err := strconv.Atoi(params["id"])
+	if err != nil {
+		http.Error(w, "Invalid book ID", http.StatusBadRequest)
+		return
+	}
 	var updated models.Book
 	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -145,7 +148,11 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 func DeleteBook(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, _ := strconv.Atoi(params["id"])
+	id, err := strconv.Atoi(params["id"])
+	if err != nil {
+		http.Error(w, "Invalid book ID", http.StatusBadRequest)
+		return
+	}
 	for i, book := range books {
 		if book.ID == id {
 			books = append(books[:i], books[i+1:]...)
