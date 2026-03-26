@@ -95,7 +95,10 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, _ := strconv.Atoi(params["id"])
 	var updated models.Book
-	json.NewDecoder(r.Body).Decode(&updated)
+	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
 	for i, book := range books {
 		if book.ID == id {
 			if updated.Title != "" {
@@ -104,10 +107,39 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			if updated.Price > 0 {
 				books[i].Price = updated.Price
 			}
+			if updated.CategoryID != 0 {
+				categoryExists := false
+				for _, c := range categories {
+					if c.ID == updated.CategoryID {
+						categoryExists = true
+						break
+					}
+				}
+				if !categoryExists {
+					http.Error(w, "Category not found", http.StatusBadRequest)
+					return
+				}
+				books[i].CategoryID = updated.CategoryID
+			}
+			if updated.AuthorID != 0 {
+				authorExists := false
+				for _, a := range authors {
+					if a.ID == updated.AuthorID {
+						authorExists = true
+						break
+					}
+				}
+				if !authorExists {
+					http.Error(w, "Author not found", http.StatusBadRequest)
+					return
+				}
+				books[i].AuthorID = updated.AuthorID
+			}
 			json.NewEncoder(w).Encode(books[i])
 			return
 		}
 	}
+
 	http.Error(w, "Book not found", http.StatusNotFound)
 }
 
