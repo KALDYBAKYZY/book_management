@@ -12,15 +12,65 @@ import (
 var books = []models.Book{}
 var nextID = 1
 
-func GetBooks(w http.ResponseWriter, _ *http.Request) {
-	json.NewEncoder(w).Encode(books)
+func GetBooks(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	categoryStr := query.Get("category_id")
+	categoryID, _ := strconv.Atoi(categoryStr)
+	page, _ := strconv.Atoi(query.Get("page"))
+	limit, _ := strconv.Atoi(query.Get("limit"))
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 4
+	}
+	filtered := []models.Book{}
+	for _, book := range books {
+		if categoryID == 0 || book.CategoryID == categoryID {
+			filtered = append(filtered, book)
+		}
+	}
+	start := (page - 1) * limit
+	end := start + limit
+	if start > len(filtered) {
+		start = len(filtered)
+	}
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	json.NewEncoder(w).Encode(filtered[start:end])
 }
 
 func CreateBook(w http.ResponseWriter, r *http.Request) {
 	var book models.Book
-	json.NewDecoder(r.Body).Decode(&book)
+	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
 	if book.Title == "" || book.Price <= 0 {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
+		return
+	}
+	categoryExists := false
+	for _, c := range categories {
+		if c.ID == book.CategoryID {
+			categoryExists = true
+			break
+		}
+	}
+	if !categoryExists {
+		http.Error(w, "Category not found", http.StatusBadRequest)
+		return
+	}
+	authorExists := false
+	for _, a := range authors {
+		if a.ID == book.AuthorID {
+			authorExists = true
+			break
+		}
+	}
+	if !authorExists {
+		http.Error(w, "Author not found", http.StatusBadRequest)
 		return
 	}
 	book.ID = nextID
@@ -58,7 +108,6 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
 	http.Error(w, "Book not found", http.StatusNotFound)
 }
 
